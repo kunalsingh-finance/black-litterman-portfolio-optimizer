@@ -10,6 +10,7 @@ from src.portfolio_optimizer.optimizer import (
     compute_equilibrium_returns,
     compute_portfolio_metrics,
     compute_risk_contributions,
+    compute_sector_exposures,
     optimize_max_sharpe_portfolio,
     optimize_long_only_portfolio,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "compute_equilibrium_returns",
     "compute_portfolio_metrics",
     "compute_risk_contributions",
+    "compute_sector_exposures",
     "load_benchmark_weights",
     "load_price_history",
     "load_views",

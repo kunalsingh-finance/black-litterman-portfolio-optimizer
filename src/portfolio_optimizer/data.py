@@ -90,6 +90,26 @@ def load_benchmark_weights(weight_path: Path, assets: list[str]) -> pd.Series:
     return ordered_weights / total_weight
 
 
+def load_sector_map(sector_map_path: Path, assets: list[str]) -> pd.Series:
+    sector_frame = pd.read_csv(sector_map_path)
+    required_columns = {"asset", "sector"}
+    missing_columns = required_columns.difference(set(sector_frame.columns))
+    if missing_columns:
+        joined_columns = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Sector map file is missing columns: {joined_columns}.")
+
+    sector_map = sector_frame.set_index("asset")["sector"].astype(str)
+    missing_assets = [asset for asset in assets if asset not in sector_map.index]
+    if missing_assets:
+        joined_assets = ", ".join(missing_assets)
+        raise ValueError(f"Sector map is missing assets: {joined_assets}.")
+
+    ordered_sector_map = sector_map.loc[assets]
+    if ordered_sector_map.str.strip().eq("").any():
+        raise ValueError("Sector map contains blank sector labels.")
+    return ordered_sector_map
+
+
 def load_views(view_path: Path, assets: list[str]) -> ViewInputs:
     views_frame = pd.read_csv(view_path)
     required_columns = {"view_name", "asset", "coefficient", "view_return", "confidence"}

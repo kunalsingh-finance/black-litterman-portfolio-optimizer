@@ -12,6 +12,7 @@ This project implements an original Black-Litterman workflow in Python:
 - loads analyst views from a transparent CSV view matrix
 - computes posterior expected returns with the Black-Litterman update
 - optimizes a constrained long-only max-Sharpe portfolio
+- reports sector exposure, risk contribution, and executive summary outputs
 - exports tables, charts, and a JSON summary for recruiter review
 
 The implementation is built from public model formulas, not copied from another GitHub repository.
@@ -29,17 +30,21 @@ Python, pandas, NumPy, matplotlib, pytest, yfinance.
 |-- data/
 |   |-- benchmark_weights.csv
 |   |-- prices.csv
+|   |-- sector_map.csv
 |   `-- views.csv
 |-- outputs/
 |   |-- annualized_covariance.csv
 |   |-- cumulative_returns.png
 |   |-- equilibrium_returns.csv
 |   |-- efficient_frontier.png
+|   |-- executive_summary.md
 |   |-- optimized_weights.csv
 |   |-- portfolio_metrics.csv
 |   |-- posterior_returns.csv
 |   |-- risk_contributions.csv
 |   |-- risk_contributions.png
+|   |-- sector_exposures.csv
+|   |-- sector_exposures.png
 |   |-- summary.json
 |   |-- utility_weights.csv
 |   |-- view_matrix.csv
@@ -62,7 +67,7 @@ python -m pip install -r requirements.txt
 Run the full demo:
 
 ```bash
-python -m src.portfolio_optimizer.run_demo --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,JPM,XOM,UNH,PG,JNJ --start-date 2021-01-01 --end-date 2026-06-03 --benchmark-weights data/benchmark_weights.csv --views data/views.csv --prices-output data/prices.csv --outputs-dir outputs --risk-free-rate 0.04 --tau 0.05 --max-weight 0.25 --iterations 750
+python -m src.portfolio_optimizer.run_demo --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,JPM,XOM,UNH,PG,JNJ --start-date 2021-01-01 --end-date 2026-06-03 --benchmark-weights data/benchmark_weights.csv --sector-map data/sector_map.csv --views data/views.csv --prices-output data/prices.csv --outputs-dir outputs --risk-free-rate 0.04 --tau 0.05 --max-weight 0.25 --iterations 750
 ```
 
 Run tests:
@@ -83,6 +88,9 @@ The demo exports:
 - `outputs/risk_contributions.csv`
 - `outputs/risk_contributions.png`
 - `outputs/efficient_frontier.png`
+- `outputs/sector_exposures.csv`
+- `outputs/sector_exposures.png`
+- `outputs/executive_summary.md`
 - `outputs/summary.json`
 
 Latest demo run:
@@ -93,12 +101,14 @@ Latest demo run:
   "end_date": "2026-06-02",
   "asset_count": 10,
   "observation_count": 1359,
-  "benchmark_model_sharpe_ratio": 0.50160058,
-  "optimized_model_sharpe_ratio": 0.51054645,
+  "benchmark_model_sharpe_ratio": 0.50160069,
+  "optimized_model_sharpe_ratio": 0.51054656,
   "top_weight": "AMZN",
-  "top_weight_value": 0.18554041,
+  "top_weight_value": 0.18554029,
   "top_risk_contributor": "AMZN",
-  "top_risk_contribution": 0.28839842
+  "top_risk_contribution": 0.28839828,
+  "largest_active_sector": "Information Technology",
+  "largest_active_sector_weight": -0.09345319
 }
 ```
 
@@ -125,6 +135,8 @@ Sample optimized weights:
 
 ![Risk contributions](outputs/risk_contributions.png)
 
+![Sector exposures](outputs/sector_exposures.png)
+
 ## Skills Demonstrated
 
 - Black-Litterman portfolio construction
@@ -133,13 +145,15 @@ Sample optimized weights:
 - covariance estimation
 - constrained long-only optimization
 - portfolio risk contribution reporting
+- sector exposure and active-weight reporting
 - efficient-frontier visualization
+- executive summary writing for investment committee-style review
 - reproducible Python data workflow
 - finance reporting outputs for portfolio review
 
 ## Data And Assumptions
 
-Price data is downloaded through `yfinance`. Benchmark weights and views are transparent demonstration assumptions stored in CSV files. They are not investment advice, trade recommendations, or claims of live portfolio performance.
+Price data is downloaded through `yfinance`. Benchmark weights, sector labels, and views are transparent demonstration assumptions stored in CSV files. They are not investment advice, trade recommendations, or claims of live portfolio performance.
 
 ## Limitations And Future Improvements
 

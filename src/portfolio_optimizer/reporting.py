@@ -60,6 +60,81 @@ def save_risk_contribution_chart(risk_contributions: pd.DataFrame, output_path: 
     return output_path
 
 
+def save_sector_exposure_chart(sector_exposures: pd.DataFrame, output_path: Path) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    exposure_columns = ["benchmark_weight", "optimized_weight"]
+    axis = sector_exposures.loc[:, exposure_columns].plot(kind="bar", figsize=(11, 6), width=0.76)
+    axis.set_title("Benchmark vs Optimized Sector Exposure")
+    axis.set_ylabel("Portfolio weight")
+    axis.set_xlabel("Sector")
+    axis.legend(["Benchmark", "Optimized"], loc="best")
+    axis.figure.tight_layout()
+    axis.figure.savefig(output_path, dpi=160)
+    plt.close(axis.figure)
+    return output_path
+
+
+def save_executive_summary(
+    summary: dict[str, str | float | int],
+    sector_exposures: pd.DataFrame,
+    risk_contributions: pd.DataFrame,
+    output_path: Path,
+) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    largest_active_sector = str(sector_exposures["active_weight"].abs().idxmax())
+    largest_active_value = float(sector_exposures.loc[largest_active_sector, "active_weight"])
+    top_risk_asset = str(risk_contributions["percent_risk_contribution"].idxmax())
+    top_risk_value = float(risk_contributions.loc[top_risk_asset, "percent_risk_contribution"])
+    optimized_sharpe = float(summary["optimized_model_sharpe_ratio"])
+    benchmark_sharpe = float(summary["benchmark_model_sharpe_ratio"])
+    sharpe_change = optimized_sharpe - benchmark_sharpe
+
+    lines = [
+        "# Executive Summary",
+        "",
+        "## Objective",
+        "",
+        "Build a reproducible Black-Litterman public-equity optimizer that combines benchmark-implied returns, transparent analyst views, and long-only max-Sharpe constraints.",
+        "",
+        "## Run Setup",
+        "",
+        f"- Price window: {summary['start_date']} to {summary['end_date']}",
+        f"- Asset count: {summary['asset_count']}",
+        f"- Daily observations: {summary['observation_count']}",
+        f"- Risk aversion estimate: {float(summary['risk_aversion']):.4f}",
+        "",
+        "## Key Results",
+        "",
+        f"- Benchmark model Sharpe ratio: {benchmark_sharpe:.4f}",
+        f"- Optimized model Sharpe ratio: {optimized_sharpe:.4f}",
+        f"- Model Sharpe improvement: {sharpe_change:.4f}",
+        f"- Top optimized weight: {summary['top_weight']} at {float(summary['top_weight_value']):.2%}",
+        f"- Top risk contributor: {top_risk_asset} at {top_risk_value:.2%} of portfolio variance",
+        f"- Largest active sector exposure: {largest_active_sector} at {largest_active_value:.2%}",
+        "",
+        "## Portfolio Interpretation",
+        "",
+        "The optimized portfolio is positioned from Black-Litterman posterior returns rather than raw historical returns. The model compares benchmark-implied priors against transparent view assumptions, then solves a constrained long-only max-Sharpe allocation.",
+        "",
+        "## Outputs To Review",
+        "",
+        "- `outputs/optimized_weights.csv`",
+        "- `outputs/portfolio_metrics.csv`",
+        "- `outputs/sector_exposures.csv`",
+        "- `outputs/risk_contributions.csv`",
+        "- `outputs/efficient_frontier.png`",
+        "- `outputs/sector_exposures.png`",
+        "- `outputs/risk_contributions.png`",
+        "",
+        "## Limitations",
+        "",
+        "This is a portfolio analytics demonstration, not investment advice. Views, benchmark weights, risk-free rate, tau, and constraints are demo assumptions. The workflow does not include transaction costs, taxes, liquidity, factor risk, or live production controls.",
+        "",
+    ]
+    output_path.write_text("\n".join(lines), encoding="ascii")
+    return output_path
+
+
 def save_efficient_frontier_chart(
     expected_returns: pd.Series,
     covariance: pd.DataFrame,

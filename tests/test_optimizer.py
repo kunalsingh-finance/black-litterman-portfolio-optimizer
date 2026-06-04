@@ -7,6 +7,7 @@ from src.portfolio_optimizer.optimizer import (
     black_litterman_posterior_returns,
     compute_equilibrium_returns,
     compute_risk_contributions,
+    compute_sector_exposures,
     compute_view_uncertainty,
     optimize_long_only_portfolio,
     optimize_max_sharpe_portfolio,
@@ -57,6 +58,19 @@ def test_compute_risk_contributions_sum_to_one() -> None:
     risk_contributions = compute_risk_contributions(weights, covariance)
 
     assert np.isclose(float(risk_contributions["percent_risk_contribution"].sum()), 1.0)
+
+
+def test_compute_sector_exposures_sums_weights_by_sector() -> None:
+    assets = ["A", "B", "C"]
+    optimized_weights = pd.Series([0.50, 0.25, 0.25], index=assets)
+    benchmark_weights = pd.Series([0.30, 0.30, 0.40], index=assets)
+    sector_map = pd.Series(["Tech", "Tech", "Health"], index=assets)
+
+    sector_exposures = compute_sector_exposures(optimized_weights, benchmark_weights, sector_map)
+
+    assert np.isclose(float(sector_exposures.loc["Tech", "optimized_weight"]), 0.75)
+    assert np.isclose(float(sector_exposures.loc["Health", "benchmark_weight"]), 0.40)
+    assert np.isclose(float(sector_exposures["optimized_weight"].sum()), 1.0)
 
 
 def test_black_litterman_relative_view_moves_posterior_returns() -> None:

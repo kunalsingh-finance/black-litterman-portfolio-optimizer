@@ -10,6 +10,7 @@ from src.portfolio_optimizer.data import (
     download_price_history,
     load_benchmark_weights,
     load_price_history,
+    load_sector_map,
     load_views,
 )
 from src.portfolio_optimizer.optimizer import (
@@ -20,6 +21,7 @@ from src.portfolio_optimizer.optimizer import (
     compute_equilibrium_returns,
     compute_portfolio_metrics,
     compute_risk_contributions,
+    compute_sector_exposures,
     compute_simple_returns,
     compute_view_uncertainty,
     estimate_risk_aversion,
@@ -30,8 +32,10 @@ from src.portfolio_optimizer.optimizer import (
 )
 from src.portfolio_optimizer.reporting import (
     save_efficient_frontier_chart,
+    save_executive_summary,
     save_return_chart,
     save_risk_contribution_chart,
+    save_sector_exposure_chart,
     save_weight_chart,
 )
 
@@ -51,6 +55,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-date", required=True, help="Price history start date in YYYY-MM-DD format.")
     parser.add_argument("--end-date", required=True, help="Price history end date in YYYY-MM-DD format.")
     parser.add_argument("--benchmark-weights", required=True, type=Path, help="Benchmark weights CSV path.")
+    parser.add_argument("--sector-map", required=True, type=Path, help="Asset sector map CSV path.")
     parser.add_argument("--views", required=True, type=Path, help="Black-Litterman views CSV path.")
     parser.add_argument("--prices-output", required=True, type=Path, help="Downloaded price CSV output path.")
     parser.add_argument("--outputs-dir", required=True, type=Path, help="Directory for model outputs.")
@@ -69,6 +74,7 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     annualized_covariance = compute_annualized_covariance(returns, 252)
     historical_returns = compute_annualized_returns(returns, 252)
     benchmark_weights = load_benchmark_weights(args.benchmark_weights, symbols)
+    sector_map = load_sector_map(args.sector_map, symbols)
     benchmark_returns = compute_benchmark_returns(returns, benchmark_weights)
     risk_aversion = estimate_risk_aversion(benchmark_returns, float(args.risk_free_rate), 252)
     equilibrium_returns = compute_equilibrium_returns(annualized_covariance, benchmark_weights, risk_aversion)
@@ -144,11 +150,14 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     metrics.to_csv(outputs_dir / "portfolio_metrics.csv", index_label="metric", float_format="%.8f")
     risk_contributions = compute_risk_contributions(optimized_weights, annualized_covariance)
     risk_contributions.to_csv(outputs_dir / "risk_contributions.csv", index_label="asset", float_format="%.8f")
+    sector_exposures = compute_sector_exposures(optimized_weights, benchmark_weights, sector_map)
+    sector_exposures.to_csv(outputs_dir / "sector_exposures.csv", index_label="sector", float_format="%.8f")
     views["pick_matrix"].to_csv(outputs_dir / "view_matrix.csv", index_label="view_name", float_format="%.8f")
     omega.to_csv(outputs_dir / "view_uncertainty.csv", index_label="view_name", float_format="%.8f")
     save_weight_chart(optimized_weights, benchmark_weights, outputs_dir / "weights.png")
     save_return_chart(returns, optimized_weights, benchmark_weights, outputs_dir / "cumulative_returns.png")
     save_risk_contribution_chart(risk_contributions, outputs_dir / "risk_contributions.png")
+    save_sector_exposure_chart(sector_exposures, outputs_dir / "sector_exposures.png")
     save_efficient_frontier_chart(
         posterior_returns,
         annualized_covariance,
@@ -177,8 +186,13 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
         "top_weight_value": float(optimized_weights.max()),
         "top_risk_contributor": str(risk_contributions["percent_risk_contribution"].idxmax()),
         "top_risk_contribution": float(risk_contributions["percent_risk_contribution"].max()),
+        "largest_active_sector": str(sector_exposures["active_weight"].abs().idxmax()),
+        "largest_active_sector_weight": float(
+            sector_exposures.loc[sector_exposures["active_weight"].abs().idxmax(), "active_weight"]
+        ),
     }
     (outputs_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="ascii")
+    save_executive_summary(summary, sector_exposures, risk_contributions, outputs_dir / "executive_summary.md")
     return summary
 
 

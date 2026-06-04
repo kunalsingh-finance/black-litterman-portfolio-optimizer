@@ -212,6 +212,27 @@ def compute_risk_contributions(weights: pd.Series, covariance: pd.DataFrame) -> 
     )
 
 
+def compute_sector_exposures(
+    optimized_weights: pd.Series,
+    benchmark_weights: pd.Series,
+    sector_map: pd.Series,
+) -> pd.DataFrame:
+    assets = list(optimized_weights.index)
+    ordered_sector_map = sector_map.loc[assets]
+    optimized_frame = pd.DataFrame(
+        {
+            "sector": ordered_sector_map,
+            "optimized_weight": optimized_weights.loc[assets],
+            "benchmark_weight": benchmark_weights.loc[assets],
+        }
+    )
+    sector_exposures = optimized_frame.groupby("sector", sort=True).sum()
+    sector_exposures["active_weight"] = (
+        sector_exposures["optimized_weight"] - sector_exposures["benchmark_weight"]
+    )
+    return sector_exposures.loc[:, ["benchmark_weight", "optimized_weight", "active_weight"]]
+
+
 def save_series(series: pd.Series, output_path: Path, value_name: str) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     frame = series.rename(value_name).reset_index()
