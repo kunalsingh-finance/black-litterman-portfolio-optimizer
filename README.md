@@ -34,9 +34,12 @@ Python, pandas, NumPy, matplotlib, pytest, yfinance.
 |   |-- annualized_covariance.csv
 |   |-- cumulative_returns.png
 |   |-- equilibrium_returns.csv
+|   |-- efficient_frontier.png
 |   |-- optimized_weights.csv
 |   |-- portfolio_metrics.csv
 |   |-- posterior_returns.csv
+|   |-- risk_contributions.csv
+|   |-- risk_contributions.png
 |   |-- summary.json
 |   |-- utility_weights.csv
 |   |-- view_matrix.csv
@@ -77,6 +80,9 @@ The demo exports:
 - `outputs/portfolio_metrics.csv`
 - `outputs/weights.png`
 - `outputs/cumulative_returns.png`
+- `outputs/risk_contributions.csv`
+- `outputs/risk_contributions.png`
+- `outputs/efficient_frontier.png`
 - `outputs/summary.json`
 
 Latest demo run:
@@ -87,10 +93,12 @@ Latest demo run:
   "end_date": "2026-06-02",
   "asset_count": 10,
   "observation_count": 1359,
-  "benchmark_model_sharpe_ratio": 0.50160064,
-  "optimized_model_sharpe_ratio": 0.51054655,
+  "benchmark_model_sharpe_ratio": 0.50160058,
+  "optimized_model_sharpe_ratio": 0.51054645,
   "top_weight": "AMZN",
-  "top_weight_value": 0.18554055
+  "top_weight_value": 0.18554041,
+  "top_risk_contributor": "AMZN",
+  "top_risk_contribution": 0.28839842
 }
 ```
 
@@ -113,6 +121,10 @@ Sample optimized weights:
 
 ![Historical cumulative return backtest](outputs/cumulative_returns.png)
 
+![Efficient frontier](outputs/efficient_frontier.png)
+
+![Risk contributions](outputs/risk_contributions.png)
+
 ## Skills Demonstrated
 
 - Black-Litterman portfolio construction
@@ -120,6 +132,8 @@ Sample optimized weights:
 - analyst view matrix design
 - covariance estimation
 - constrained long-only optimization
+- portfolio risk contribution reporting
+- efficient-frontier visualization
 - reproducible Python data workflow
 - finance reporting outputs for portfolio review
 

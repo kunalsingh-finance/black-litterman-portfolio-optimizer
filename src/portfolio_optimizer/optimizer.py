@@ -191,6 +191,27 @@ def compute_portfolio_metrics(
     )
 
 
+def compute_risk_contributions(weights: pd.Series, covariance: pd.DataFrame) -> pd.DataFrame:
+    assets = list(weights.index)
+    weight_values = weights.to_numpy(dtype=float)
+    covariance_values = covariance.loc[assets, assets].to_numpy(dtype=float)
+    portfolio_variance = float(weight_values @ covariance_values @ weight_values)
+    if portfolio_variance <= 0.0:
+        raise ValueError("Portfolio variance must be positive.")
+
+    marginal_contribution = covariance_values @ weight_values
+    component_variance = weight_values * marginal_contribution
+    percent_contribution = component_variance / portfolio_variance
+    return pd.DataFrame(
+        {
+            "weight": weight_values,
+            "component_variance": component_variance,
+            "percent_risk_contribution": percent_contribution,
+        },
+        index=assets,
+    )
+
+
 def save_series(series: pd.Series, output_path: Path, value_name: str) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     frame = series.rename(value_name).reset_index()

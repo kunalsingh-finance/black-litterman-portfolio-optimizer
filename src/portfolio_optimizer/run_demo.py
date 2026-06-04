@@ -19,6 +19,7 @@ from src.portfolio_optimizer.optimizer import (
     compute_benchmark_returns,
     compute_equilibrium_returns,
     compute_portfolio_metrics,
+    compute_risk_contributions,
     compute_simple_returns,
     compute_view_uncertainty,
     estimate_risk_aversion,
@@ -27,7 +28,12 @@ from src.portfolio_optimizer.optimizer import (
     save_matrix,
     save_series,
 )
-from src.portfolio_optimizer.reporting import save_return_chart, save_weight_chart
+from src.portfolio_optimizer.reporting import (
+    save_efficient_frontier_chart,
+    save_return_chart,
+    save_risk_contribution_chart,
+    save_weight_chart,
+)
 
 
 def _parse_symbols(symbols_text: str) -> list[str]:
@@ -136,10 +142,22 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
         }
     )
     metrics.to_csv(outputs_dir / "portfolio_metrics.csv", index_label="metric", float_format="%.8f")
+    risk_contributions = compute_risk_contributions(optimized_weights, annualized_covariance)
+    risk_contributions.to_csv(outputs_dir / "risk_contributions.csv", index_label="asset", float_format="%.8f")
     views["pick_matrix"].to_csv(outputs_dir / "view_matrix.csv", index_label="view_name", float_format="%.8f")
     omega.to_csv(outputs_dir / "view_uncertainty.csv", index_label="view_name", float_format="%.8f")
     save_weight_chart(optimized_weights, benchmark_weights, outputs_dir / "weights.png")
     save_return_chart(returns, optimized_weights, benchmark_weights, outputs_dir / "cumulative_returns.png")
+    save_risk_contribution_chart(risk_contributions, outputs_dir / "risk_contributions.png")
+    save_efficient_frontier_chart(
+        posterior_returns,
+        annualized_covariance,
+        benchmark_weights,
+        optimized_weights,
+        float(args.risk_free_rate),
+        float(args.max_weight),
+        outputs_dir / "efficient_frontier.png",
+    )
 
     summary: dict[str, str | float | int] = {
         "start_date": str(prices.index.min().date()),
@@ -157,6 +175,8 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
         "optimized_model_sharpe_ratio": float(optimized_model_metrics.loc["sharpe_ratio"]),
         "top_weight": str(optimized_weights.idxmax()),
         "top_weight_value": float(optimized_weights.max()),
+        "top_risk_contributor": str(risk_contributions["percent_risk_contribution"].idxmax()),
+        "top_risk_contribution": float(risk_contributions["percent_risk_contribution"].max()),
     }
     (outputs_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="ascii")
     return summary

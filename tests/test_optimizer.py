@@ -6,6 +6,7 @@ import pandas as pd
 from src.portfolio_optimizer.optimizer import (
     black_litterman_posterior_returns,
     compute_equilibrium_returns,
+    compute_risk_contributions,
     compute_view_uncertainty,
     optimize_long_only_portfolio,
     optimize_max_sharpe_portfolio,
@@ -42,6 +43,20 @@ def test_optimize_max_sharpe_portfolio_respects_constraints() -> None:
     assert np.isclose(float(weights.sum()), 1.0)
     assert (weights >= 0.0).all()
     assert (weights <= 0.4500001).all()
+
+
+def test_compute_risk_contributions_sum_to_one() -> None:
+    assets = ["A", "B", "C"]
+    weights = pd.Series([0.5, 0.3, 0.2], index=assets)
+    covariance = pd.DataFrame(
+        [[0.04, 0.01, 0.00], [0.01, 0.03, 0.01], [0.00, 0.01, 0.02]],
+        index=assets,
+        columns=assets,
+    )
+
+    risk_contributions = compute_risk_contributions(weights, covariance)
+
+    assert np.isclose(float(risk_contributions["percent_risk_contribution"].sum()), 1.0)
 
 
 def test_black_litterman_relative_view_moves_posterior_returns() -> None:
