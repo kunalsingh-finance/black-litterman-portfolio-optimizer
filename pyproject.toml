@@ -1,0 +1,16 @@
+[project]
+name = "black-litterman-portfolio-optimizer"
+version = "0.1.0"
+description = "Public equity Black-Litterman portfolio optimizer with reproducible data, views, and outputs."
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scipy>=1.16",
+    "yfinance>=0.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

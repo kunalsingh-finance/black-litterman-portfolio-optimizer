@@ -1,0 +1,17 @@
+{
+  "start_date": "2021-01-04",
+  "end_date": "2026-06-02",
+  "asset_count": 10,
+  "observation_count": 1359,
+  "risk_aversion": 5.661954125458111,
+  "benchmark_historical_return": 0.24235737621525033,
+  "optimized_historical_return": 0.21803554423993377,
+  "benchmark_model_return": 0.1348275270992935,
+  "optimized_model_return": 0.13203094410014043,
+  "benchmark_model_volatility": 0.18904985417113948,
+  "optimized_model_volatility": 0.1802596532456187,
+  "benchmark_model_sharpe_ratio": 0.5016006360599983,
+  "optimized_model_sharpe_ratio": 0.5105465501741571,
+  "top_weight": "AMZN",
+  "top_weight_value": 0.1855405456426485
+}

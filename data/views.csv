@@ -1,0 +1,10 @@
+view_name,asset,coefficient,view_return,confidence
+Tech growth basket over defensives,AAPL,0.25,0.0300,0.65
+Tech growth basket over defensives,MSFT,0.25,0.0300,0.65
+Tech growth basket over defensives,NVDA,0.25,0.0300,0.65
+Tech growth basket over defensives,GOOGL,0.25,0.0300,0.65
+Tech growth basket over defensives,PG,-0.50,0.0300,0.65
+Tech growth basket over defensives,JNJ,-0.50,0.0300,0.65
+Banks over energy,JPM,1.00,0.0100,0.55
+Banks over energy,XOM,-1.00,0.0100,0.55
+Healthcare absolute view,UNH,1.00,0.0700,0.50
