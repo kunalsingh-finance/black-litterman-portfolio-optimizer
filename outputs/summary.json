@@ -1,4 +1,7 @@
 {
+  "price_source_mode": "cached_adjusted_prices",
+  "price_file_sha256": "230c017bd49c03453e33ce5fa33bd571e5fe9f92fe7b58a4f3e6d7b688fa4f87",
+  "historical_evaluation": "in_sample_constant_weight_diagnostic",
   "start_date": "2021-01-04",
   "end_date": "2026-06-02",
   "asset_count": 10,

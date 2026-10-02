@@ -66,6 +66,13 @@ python -m pip install -r requirements.txt
 
 Run the full demo:
 
+Use Python 3.11. For offline reproduction, run the command below with
+`--prices-input data/prices.csv` added. This reads the checked-in adjusted-price
+snapshot and makes no market-data request. Omit that option to download a new,
+mutable Yahoo Finance vintage. Both modes record the exact price-file SHA-256
+and source mode in `summary.json`; cached prices must use the adjusted-price
+convention. The requested end date is exclusive.
+
 ```bash
 python -m src.portfolio_optimizer.run_demo --symbols AAPL,MSFT,NVDA,AMZN,GOOGL,JPM,XOM,UNH,PG,JNJ --start-date 2021-01-01 --end-date 2026-06-03 --benchmark-weights data/benchmark_weights.csv --sector-map data/sector_map.csv --views data/views.csv --prices-output data/prices.csv --outputs-dir outputs --risk-free-rate 0.04 --tau 0.05 --max-weight 0.25 --iterations 750
 ```
@@ -129,7 +136,7 @@ Sample optimized weights:
 
 ![Benchmark vs optimized weights](outputs/weights.png)
 
-![Historical cumulative return backtest](outputs/cumulative_returns.png)
+![In-sample constant-weight return diagnostic](outputs/cumulative_returns.png)
 
 ![Efficient frontier](outputs/efficient_frontier.png)
 
@@ -152,6 +159,13 @@ Sample optimized weights:
 - finance reporting outputs for portfolio review
 
 ## Data And Assumptions
+
+The cumulative chart and historical metrics are **in-sample constant-weight
+diagnostics**. The full window estimates covariance, risk aversion and final
+weights, and those weights are reapplied to the same window. This is not a
+chronological out-of-sample backtest. The analyst views are undated demo
+assumptions, and model Sharpe improvement is an optimizer result under those
+assumptions rather than observed investment performance.
 
 Price data is downloaded through `yfinance`. Benchmark weights, sector labels, and views are transparent demonstration assumptions stored in CSV files. They are not investment advice, trade recommendations, or claims of live portfolio performance.
 

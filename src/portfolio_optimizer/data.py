@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TypedDict
 
 import pandas as pd
-import yfinance as yf
+import numpy as np
 
 
 class ViewInputs(TypedDict):
@@ -23,6 +23,8 @@ def download_price_history(
         raise ValueError("At least one symbol is required.")
     if len(set(symbols)) != len(symbols):
         raise ValueError("Symbol list contains duplicates.")
+
+    import yfinance as yf
 
     raw_prices = yf.download(
         tickers=symbols,
@@ -63,7 +65,12 @@ def load_price_history(price_path: Path) -> pd.DataFrame:
         raise ValueError(f"Price file is empty: {price_path}.")
     if prices.isna().any().any():
         raise ValueError(f"Price file contains missing values: {price_path}.")
-    return prices.astype(float)
+    prices = prices.astype(float)
+    if prices.index.hasnans or prices.index.has_duplicates or not prices.index.is_monotonic_increasing:
+        raise ValueError("Price dates must be unique, valid and increasing.")
+    if not np.isfinite(prices.to_numpy()).all() or (prices <= 0).any().any():
+        raise ValueError("Prices must be finite and positive.")
+    return prices
 
 
 def load_benchmark_weights(weight_path: Path, assets: list[str]) -> pd.Series:

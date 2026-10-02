@@ -4,11 +4,11 @@ version = "0.1.0"
 description = "Public equity Black-Litterman portfolio optimizer with reproducible data, views, and outputs."
 requires-python = ">=3.11"
 dependencies = [
-    "matplotlib>=3.8",
-    "numpy>=1.26",
-    "pandas>=2.2",
-    "scipy>=1.16",
-    "yfinance>=0.2",
+    "matplotlib==3.10.7",
+    "numpy==2.3.5",
+    "pandas==2.2.3",
+    "scipy==1.16.3",
+    "yfinance==1.1.0",
 ]
 
 [tool.pytest.ini_options]

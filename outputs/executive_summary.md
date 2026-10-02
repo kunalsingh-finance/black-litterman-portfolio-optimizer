@@ -7,6 +7,8 @@ Build a reproducible Black-Litterman public-equity optimizer that combines bench
 ## Run Setup
 
 - Price window: 2021-01-04 to 2026-06-02
+- Price source mode: cached_adjusted_prices
+- Saved price SHA-256: 230c017bd49c03453e33ce5fa33bd571e5fe9f92fe7b58a4f3e6d7b688fa4f87
 - Asset count: 10
 - Daily observations: 1359
 - Risk aversion estimate: 5.6620
@@ -35,5 +37,7 @@ The optimized portfolio is positioned from Black-Litterman posterior returns rat
 - `outputs/risk_contributions.png`
 
 ## Limitations
+
+Historical metrics and cumulative growth are in-sample constant-weight diagnostics: the full price window determines covariance, risk aversion and final weights, which are then applied to that same window. They are not a chronological out-of-sample backtest or evidence that this allocation could have been traded at the start. Analyst views are undated demonstration assumptions.
 
 This is a portfolio analytics demonstration, not investment advice. Views, benchmark weights, risk-free rate, tau, and constraints are demo assumptions. The workflow does not include transaction costs, taxes, liquidity, factor risk, or live production controls.

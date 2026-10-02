@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -37,7 +39,7 @@ def save_return_chart(returns: pd.DataFrame, weights: pd.Series, benchmark_weigh
         }
     )
     axis = cumulative.plot(figsize=(11, 6))
-    axis.set_title("Historical Cumulative Return Backtest")
+    axis.set_title("In-sample Constant-weight Return Diagnostic\nWeights estimated using the same price window")
     axis.set_ylabel("Growth of $1")
     axis.set_xlabel("Date")
     axis.legend(loc="best")
@@ -99,6 +101,8 @@ def save_executive_summary(
         "## Run Setup",
         "",
         f"- Price window: {summary['start_date']} to {summary['end_date']}",
+        f"- Price source mode: {summary['price_source_mode']}",
+        f"- Saved price SHA-256: {summary['price_file_sha256']}",
         f"- Asset count: {summary['asset_count']}",
         f"- Daily observations: {summary['observation_count']}",
         f"- Risk aversion estimate: {float(summary['risk_aversion']):.4f}",
@@ -127,6 +131,8 @@ def save_executive_summary(
         "- `outputs/risk_contributions.png`",
         "",
         "## Limitations",
+        "",
+        "Historical metrics and cumulative growth are in-sample constant-weight diagnostics: the full price window determines covariance, risk aversion and final weights, which are then applied to that same window. They are not a chronological out-of-sample backtest or evidence that this allocation could have been traded at the start. Analyst views are undated demonstration assumptions.",
         "",
         "This is a portfolio analytics demonstration, not investment advice. Views, benchmark weights, risk-free rate, tau, and constraints are demo assumptions. The workflow does not include transaction costs, taxes, liquidity, factor risk, or live production controls.",
         "",

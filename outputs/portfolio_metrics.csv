@@ -1,4 +1,4 @@
-metric,benchmark_historical,optimized_historical,benchmark_model,optimized_model
+metric,benchmark_in_sample,optimized_in_sample,benchmark_model,optimized_model
 expected_return,0.24235737,0.21803553,0.13482752,0.13203089
 volatility,0.18904981,0.18025955,0.18904981,0.18025955
 sharpe_ratio,1.07039179,0.98766213,0.50160069,0.51054656

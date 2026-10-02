@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 from pathlib import Path
 
 import pandas as pd
@@ -57,7 +58,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--benchmark-weights", required=True, type=Path, help="Benchmark weights CSV path.")
     parser.add_argument("--sector-map", required=True, type=Path, help="Asset sector map CSV path.")
     parser.add_argument("--views", required=True, type=Path, help="Black-Litterman views CSV path.")
-    parser.add_argument("--prices-output", required=True, type=Path, help="Downloaded price CSV output path.")
+    parser.add_argument("--prices-output", default=Path("data/prices.csv"), type=Path, help="Downloaded price CSV output path.")
+    parser.add_argument("--prices-input", type=Path, help="Use a saved adjusted-price CSV without network requests.")
     parser.add_argument("--outputs-dir", required=True, type=Path, help="Directory for model outputs.")
     parser.add_argument("--risk-free-rate", required=True, type=float, help="Annual risk-free rate assumption.")
     parser.add_argument("--tau", required=True, type=float, help="Black-Litterman tau scalar.")
@@ -68,9 +70,21 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     symbols = _parse_symbols(str(args.symbols))
-    prices = download_price_history(symbols, str(args.start_date), str(args.end_date), args.prices_output)
-    loaded_prices = load_price_history(args.prices_output)
-    returns = compute_simple_returns(loaded_prices)
+    price_input = getattr(args, "prices_input", None)
+    if price_input is None:
+        download_price_history(symbols, str(args.start_date), str(args.end_date), args.prices_output)
+    price_path = Path(price_input or args.prices_output)
+    loaded_prices = load_price_history(price_path)
+    missing = sorted(set(symbols) - set(loaded_prices.columns))
+    if missing:
+        raise ValueError(f"Saved price file is missing symbols: {', '.join(missing)}")
+    start, end = pd.Timestamp(args.start_date), pd.Timestamp(args.end_date)
+    if start >= end:
+        raise ValueError("Start date must precede end date (exclusive).")
+    prices = loaded_prices.loc[(loaded_prices.index >= start) & (loaded_prices.index < end), symbols]
+    if len(prices) < 252:
+        raise ValueError("At least 252 price observations are required in the requested window.")
+    returns = compute_simple_returns(prices)
     annualized_covariance = compute_annualized_covariance(returns, 252)
     historical_returns = compute_annualized_returns(returns, 252)
     benchmark_weights = load_benchmark_weights(args.benchmark_weights, symbols)
@@ -141,8 +155,8 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
 
     metrics = pd.DataFrame(
         {
-            "benchmark_historical": benchmark_historical_metrics,
-            "optimized_historical": optimized_historical_metrics,
+            "benchmark_in_sample": benchmark_historical_metrics,
+            "optimized_in_sample": optimized_historical_metrics,
             "benchmark_model": benchmark_model_metrics,
             "optimized_model": optimized_model_metrics,
         }
@@ -169,6 +183,9 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     )
 
     summary: dict[str, str | float | int] = {
+        "price_source_mode": "cached_adjusted_prices" if price_input else "yfinance_adjusted_prices",
+        "price_file_sha256": hashlib.sha256(price_path.read_bytes()).hexdigest(),
+        "historical_evaluation": "in_sample_constant_weight_diagnostic",
         "start_date": str(prices.index.min().date()),
         "end_date": str(prices.index.max().date()),
         "asset_count": len(symbols),
