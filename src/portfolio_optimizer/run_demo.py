@@ -14,6 +14,10 @@ from src.portfolio_optimizer.data import (
     load_sector_map,
     load_views,
 )
+from src.portfolio_optimizer.evaluation import (
+    export_holdout, remove_owned_holdout_pack, split_training_holdout,
+    validate_training_cutoff, validate_transaction_cost_bps,
+)
 from src.portfolio_optimizer.optimizer import (
     black_litterman_posterior_returns,
     compute_annualized_covariance,
@@ -38,6 +42,7 @@ from src.portfolio_optimizer.reporting import (
     save_risk_contribution_chart,
     save_sector_exposure_chart,
     save_weight_chart,
+    save_holdout_chart,
 )
 
 
@@ -65,11 +70,18 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tau", required=True, type=float, help="Black-Litterman tau scalar.")
     parser.add_argument("--max-weight", required=True, type=float, help="Maximum long-only asset weight.")
     parser.add_argument("--iterations", required=True, type=int, help="Projected-gradient optimizer iterations.")
+    parser.add_argument("--train-end", help="Exclusive training cutoff; enables a separate chronological scenario holdout.")
+    parser.add_argument("--transaction-cost-bps", type=float, default=10.0,
+                        help="Holdout entry fee per acquired dollar, in basis points; default 10, zero allowed.")
     return parser
 
 
 def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     symbols = _parse_symbols(str(args.symbols))
+    train_end = getattr(args, "train_end", None)
+    if train_end is not None:
+        validate_training_cutoff(train_end)
+        validate_transaction_cost_bps(float(args.transaction_cost_bps))
     price_input = getattr(args, "prices_input", None)
     if price_input is None:
         download_price_history(symbols, str(args.start_date), str(args.end_date), args.prices_output)
@@ -84,7 +96,8 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     prices = loaded_prices.loc[(loaded_prices.index >= start) & (loaded_prices.index < end), symbols]
     if len(prices) < 252:
         raise ValueError("At least 252 price observations are required in the requested window.")
-    returns = compute_simple_returns(prices)
+    fitting_prices, holdout_prices = split_training_holdout(prices, train_end) if train_end is not None else (prices, None)
+    returns = compute_simple_returns(fitting_prices)
     annualized_covariance = compute_annualized_covariance(returns, 252)
     historical_returns = compute_annualized_returns(returns, 252)
     benchmark_weights = load_benchmark_weights(args.benchmark_weights, symbols)
@@ -146,6 +159,8 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     )
 
     outputs_dir = Path(args.outputs_dir)
+    if holdout_prices is None:
+        remove_owned_holdout_pack(outputs_dir)
     outputs_dir.mkdir(parents=True, exist_ok=True)
     save_series(equilibrium_returns, outputs_dir / "equilibrium_returns.csv", "equilibrium_return")
     save_series(posterior_returns, outputs_dir / "posterior_returns.csv", "posterior_return")
@@ -155,8 +170,8 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
 
     metrics = pd.DataFrame(
         {
-            "benchmark_in_sample": benchmark_historical_metrics,
-            "optimized_in_sample": optimized_historical_metrics,
+            "benchmark_training_in_sample" if train_end else "benchmark_in_sample": benchmark_historical_metrics,
+            "optimized_training_in_sample" if train_end else "optimized_in_sample": optimized_historical_metrics,
             "benchmark_model": benchmark_model_metrics,
             "optimized_model": optimized_model_metrics,
         }
@@ -169,7 +184,7 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     views["pick_matrix"].to_csv(outputs_dir / "view_matrix.csv", index_label="view_name", float_format="%.8f")
     omega.to_csv(outputs_dir / "view_uncertainty.csv", index_label="view_name", float_format="%.8f")
     save_weight_chart(optimized_weights, benchmark_weights, outputs_dir / "weights.png")
-    save_return_chart(returns, optimized_weights, benchmark_weights, outputs_dir / "cumulative_returns.png")
+    save_return_chart(returns, optimized_weights, benchmark_weights, outputs_dir / "cumulative_returns.png", training_only=bool(train_end))
     save_risk_contribution_chart(risk_contributions, outputs_dir / "risk_contributions.png")
     save_sector_exposure_chart(sector_exposures, outputs_dir / "sector_exposures.png")
     save_efficient_frontier_chart(
@@ -185,11 +200,12 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
     summary: dict[str, str | float | int] = {
         "price_source_mode": "cached_adjusted_prices" if price_input else "yfinance_adjusted_prices",
         "price_file_sha256": hashlib.sha256(price_path.read_bytes()).hexdigest(),
-        "historical_evaluation": "in_sample_constant_weight_diagnostic",
-        "start_date": str(prices.index.min().date()),
-        "end_date": str(prices.index.max().date()),
+        "historical_evaluation": "training_in_sample_diagnostic_with_separate_holdout" if train_end else "in_sample_constant_weight_diagnostic",
+        "active_holdout_manifest": "holdout/manifest.json" if train_end is not None else None,
+        "start_date": str(fitting_prices.index.min().date()),
+        "end_date": str(fitting_prices.index.max().date()),
         "asset_count": len(symbols),
-        "observation_count": int(prices.shape[0]),
+        "observation_count": int(fitting_prices.shape[0]),
         "risk_aversion": float(risk_aversion),
         "benchmark_historical_return": float(benchmark_historical_metrics.loc["expected_return"]),
         "optimized_historical_return": float(optimized_historical_metrics.loc["expected_return"]),
@@ -208,6 +224,32 @@ def run_demo(args: argparse.Namespace) -> dict[str, str | float | int]:
             sector_exposures.loc[sector_exposures["active_weight"].abs().idxmax(), "active_weight"]
         ),
     }
+    if holdout_prices is not None:
+        configuration = {"symbols": symbols, "start_date_inclusive": str(args.start_date),
+                         "end_date_exclusive": str(args.end_date), "train_end_exclusive": str(train_end),
+                         "risk_free_rate_annual_assumption": float(args.risk_free_rate), "tau": float(args.tau),
+                         "max_weight": float(args.max_weight), "iterations": int(args.iterations),
+                         "transaction_cost_bps": float(args.transaction_cost_bps)}
+        source_hashes = {"prices": hashlib.sha256(price_path.read_bytes()).hexdigest(),
+                         "benchmark_weights": hashlib.sha256(args.benchmark_weights.read_bytes()).hexdigest(),
+                         "sector_map": hashlib.sha256(args.sector_map.read_bytes()).hexdigest(),
+                         "views": hashlib.sha256(args.views.read_bytes()).hexdigest()}
+        manifest, daily = export_holdout(outputs_dir / "holdout", fitting_prices, holdout_prices,
+                                         optimized_weights, benchmark_weights, float(args.transaction_cost_bps),
+                                         float(args.risk_free_rate), configuration, source_hashes,
+                                         str(summary["price_source_mode"]))
+        chart_path = save_holdout_chart(daily, outputs_dir / "holdout/cumulative_wealth.png", float(args.transaction_cost_bps))
+        manifest["output_sha256"]["cumulative_wealth.png"] = hashlib.sha256(chart_path.read_bytes()).hexdigest()
+        (outputs_dir / "holdout/manifest.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
+        summary.update({"training_cutoff_exclusive": str(train_end), "holdout_manifest": "holdout/manifest.json",
+                        "holdout_entry_close_date": manifest["entry_close_date"],
+                        "holdout_first_return_date": manifest["first_heldout_return_date"],
+                        "holdout_last_price_date": manifest["last_heldout_price_date"],
+                        "holdout_return_observations": manifest["heldout_return_observations"],
+                        "holdout_transaction_cost_bps": float(args.transaction_cost_bps),
+                        "holdout_benchmark_net_total_return": manifest["metrics"]["benchmark"]["net_total_return"],
+                        "holdout_optimized_net_total_return": manifest["metrics"]["optimized"]["net_total_return"],
+                        "holdout_net_return_difference": manifest["net_terminal_return_difference_optimized_minus_benchmark"]})
     (outputs_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="ascii")
     save_executive_summary(summary, sector_exposures, risk_contributions, outputs_dir / "executive_summary.md")
     return summary
