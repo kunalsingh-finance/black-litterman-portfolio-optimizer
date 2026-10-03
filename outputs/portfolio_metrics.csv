@@ -1,4 +1,4 @@
-metric,benchmark_historical,optimized_historical,benchmark_model,optimized_model
-expected_return,0.24235737,0.21803553,0.13482752,0.13203089
-volatility,0.18904981,0.18025955,0.18904981,0.18025955
-sharpe_ratio,1.07039179,0.98766213,0.50160069,0.51054656
+metric,benchmark_training_in_sample,optimized_training_in_sample,benchmark_model,optimized_model
+expected_return,0.25009330,0.22340472,0.13727220,0.13178543
+volatility,0.19369022,0.18072251,0.19369022,0.18072251
+sharpe_ratio,1.08468719,1.01484165,0.50220502,0.50788048

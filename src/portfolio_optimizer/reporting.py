@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -26,7 +28,7 @@ def save_weight_chart(weights: pd.Series, benchmark_weights: pd.Series, output_p
     return output_path
 
 
-def save_return_chart(returns: pd.DataFrame, weights: pd.Series, benchmark_weights: pd.Series, output_path: Path) -> Path:
+def save_return_chart(returns: pd.DataFrame, weights: pd.Series, benchmark_weights: pd.Series, output_path: Path, *, training_only: bool = False) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     optimized_returns = returns.loc[:, weights.index] @ weights
     benchmark_returns = returns.loc[:, benchmark_weights.index] @ benchmark_weights
@@ -37,13 +39,31 @@ def save_return_chart(returns: pd.DataFrame, weights: pd.Series, benchmark_weigh
         }
     )
     axis = cumulative.plot(figsize=(11, 6))
-    axis.set_title("Historical Cumulative Return Backtest")
+    label = "Training In-sample" if training_only else "In-sample"
+    axis.set_title(f"{label} Constant-weight Return Diagnostic\nWeights estimated using the same fitting window")
     axis.set_ylabel("Growth of $1")
     axis.set_xlabel("Date")
     axis.legend(loc="best")
     axis.figure.tight_layout()
     axis.figure.savefig(output_path, dpi=160)
     plt.close(axis.figure)
+    return output_path
+
+
+def save_holdout_chart(daily: pd.DataFrame, output_path: Path, transaction_cost_bps: float) -> Path:
+    figure, axis = plt.subplots(figsize=(11, 6))
+    for name, color in (("benchmark", "#1f77b4"), ("optimized", "#d62728")):
+        axis.plot(daily.index, daily[f"{name}_gross_wealth"], color=color, linestyle="--", alpha=0.55, label=f"{name.title()} gross")
+        axis.plot(daily.index, daily[f"{name}_net_wealth"], color=color, label=f"{name.title()} net entry fee")
+    axis.set_title(f"Chronological Holdout: Frozen Scenario Allocation\nFirst-close entry, fixed adjusted-price units; {transaction_cost_bps:g} bps acquisition fee")
+    axis.set_ylabel("Marked wealth per $1 initial cash (no exit liquidation)")
+    axis.set_xlabel("Holdout date")
+    axis.legend(loc="best")
+    figure.text(0.5, 0.015, "Undated scenario views | selected current universe | revised price vintage | no historical execution claim", ha="center", fontsize=9)
+    figure.tight_layout(rect=[0, 0.045, 1, 1])
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(output_path, dpi=160)
+    plt.close(figure)
     return output_path
 
 
@@ -88,6 +108,7 @@ def save_executive_summary(
     optimized_sharpe = float(summary["optimized_model_sharpe_ratio"])
     benchmark_sharpe = float(summary["benchmark_model_sharpe_ratio"])
     sharpe_change = optimized_sharpe - benchmark_sharpe
+    has_holdout = "holdout_manifest" in summary
 
     lines = [
         "# Executive Summary",
@@ -98,12 +119,14 @@ def save_executive_summary(
         "",
         "## Run Setup",
         "",
-        f"- Price window: {summary['start_date']} to {summary['end_date']}",
+        f"- Fitting price window: {summary['start_date']} to {summary['end_date']}",
+        f"- Price source mode: {summary['price_source_mode']}",
+        f"- Saved price SHA-256: {summary['price_file_sha256']}",
         f"- Asset count: {summary['asset_count']}",
         f"- Daily observations: {summary['observation_count']}",
         f"- Risk aversion estimate: {float(summary['risk_aversion']):.4f}",
         "",
-        "## Key Results",
+        "## Training Model Results" if has_holdout else "## Key Results",
         "",
         f"- Benchmark model Sharpe ratio: {benchmark_sharpe:.4f}",
         f"- Optimized model Sharpe ratio: {optimized_sharpe:.4f}",
@@ -128,9 +151,27 @@ def save_executive_summary(
         "",
         "## Limitations",
         "",
-        "This is a portfolio analytics demonstration, not investment advice. Views, benchmark weights, risk-free rate, tau, and constraints are demo assumptions. The workflow does not include transaction costs, taxes, liquidity, factor risk, or live production controls.",
+        "Historical metrics in portfolio_metrics.csv and cumulative_returns.png are in-sample constant-weight diagnostics for the fitting window. They are not a chronological out-of-sample backtest or evidence that this allocation could have been traded at the start. Analyst views are undated demonstration assumptions.",
+        "",
+        "This is a portfolio analytics demonstration, not investment advice. Views, benchmark weights, risk-free rate, tau, and constraints are demo assumptions. The holdout uses an explicit acquisition-fee scenario when enabled; it does not model taxes, variable spreads, liquidity or production execution.",
         "",
     ]
+    if has_holdout:
+        insert_at = lines.index("## Training Model Results")
+        lines[insert_at:insert_at] = [
+            "## Chronological Scenario Holdout", "",
+            f"- Training cutoff (exclusive): {summary['training_cutoff_exclusive']}",
+            f"- Entry at first holdout close: {summary['holdout_entry_close_date']}",
+            f"- Held-out return dates: {summary['holdout_first_return_date']} to {summary['holdout_last_price_date']}",
+            f"- Held-out return observations: {summary['holdout_return_observations']}",
+            f"- Acquisition cost assumption: {float(summary['holdout_transaction_cost_bps']):g} basis points per acquired dollar for each portfolio",
+            f"- Benchmark net total return: {float(summary['holdout_benchmark_net_total_return']):.2%}",
+            f"- Optimized net total return: {float(summary['holdout_optimized_net_total_return']):.2%}",
+            f"- Optimized minus benchmark net total return: {100 * float(summary['holdout_net_return_difference']):.2f} percentage points",
+            "", "Training-only fitted weights enter at the first holdout close. Each portfolio starts with $1 cash, pays its acquisition fee, and holds fixed adjusted-price units with drifting weights. Terminal wealth is marked without an exit liquidation; no later turnover is assumed.",
+            "", "Inspect holdout/manifest.json, daily_wealth.csv, entry_trades.csv, weights.csv, realized_metrics.csv and cumulative_wealth.png. Configuration, source CSVs, training prices and outputs have SHA-256 records.",
+            "", "This is a chronological holdout conditional on frozen, undated scenario views. It does not establish these views were available historically. The selected current universe is not a point-in-time constituent/delisting dataset, and the adjusted-price snapshot is a revised vintage. One caller-specified cutoff is used without searching for a winning split.", "",
+        ]
     output_path.write_text("\n".join(lines), encoding="ascii")
     return output_path
 
