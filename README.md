@@ -2,7 +2,7 @@
 
 One-line problem: build a reproducible public-equity portfolio optimizer that starts from benchmark-implied returns, adds analyst views, and produces constrained long-only portfolio weights.
 
-## What I Built
+## Workflow
 
 This project implements an original Black-Litterman workflow in Python:
 
@@ -13,7 +13,7 @@ This project implements an original Black-Litterman workflow in Python:
 - computes posterior expected returns with the Black-Litterman update
 - optimizes a constrained long-only max-Sharpe portfolio
 - reports sector exposure, risk contribution, and executive summary outputs
-- exports tables, charts, and a JSON summary for recruiter review
+- exports tables, charts, and a JSON summary for analytical review
 - fits only before a declared cutoff and evaluates a separate chronological scenario holdout
 - accounts for acquisition costs, initial funding, fixed holdings and drifting portfolio weights
 
@@ -191,7 +191,7 @@ Training-fitted entry weights:
 
 ![Sector exposures](outputs/sector_exposures.png)
 
-## Skills Demonstrated
+## Methods and Reporting
 
 - Black-Litterman portfolio construction
 - equilibrium return estimation
